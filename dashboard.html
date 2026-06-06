@@ -1,0 +1,1634 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>SmartLight IoT — Dashboard | Smart Lighting System</title>
+  <meta name="description" content="Premium Smart Lighting System IoT Dashboard — Arduino-powered automated lighting with PIR, LDR, RTC, and BLE control."/>
+
+  <!-- Bootstrap 5 -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet"/>
+  <!-- Font Awesome 6 -->
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" rel="stylesheet"/>
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+
+  <!-- Our Styles -->
+  <link rel="stylesheet" href="css/main.css"/>
+  <link rel="stylesheet" href="css/animations.css"/>
+
+  <style>
+    /* ===== DASHBOARD-SPECIFIC STYLES ===== */
+
+    /* Day/Night badge */
+    .day-night-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 0.75rem;
+      font-weight: 700;
+      font-family: 'JetBrains Mono', monospace;
+    }
+    .day-night-badge.day { background: rgba(245,158,11,0.15); color: #f59e0b; border: 1px solid rgba(245,158,11,0.3); }
+    .day-night-badge.night { background: rgba(168,85,247,0.15); color: #a855f7; border: 1px solid rgba(168,85,247,0.3); }
+
+    /* Status badges */
+    .badge-green { background: rgba(16,185,129,0.2); color: #10b981; border: 1px solid rgba(16,185,129,0.4); padding: 4px 12px; border-radius: 20px; font-size: 0.78rem; font-weight: 700; }
+    .badge-red { background: rgba(239,68,68,0.2); color: #ef4444; border: 1px solid rgba(239,68,68,0.4); padding: 4px 12px; border-radius: 20px; font-size: 0.78rem; font-weight: 700; }
+    .badge-yellow { background: rgba(245,158,11,0.2); color: #f59e0b; border: 1px solid rgba(245,158,11,0.4); padding: 4px 12px; border-radius: 20px; font-size: 0.78rem; font-weight: 700; }
+    .badge-blue { background: rgba(0,212,255,0.15); color: #00d4ff; border: 1px solid rgba(0,212,255,0.3); padding: 4px 12px; border-radius: 20px; font-size: 0.78rem; font-weight: 700; }
+    .badge-purple { background: rgba(168,85,247,0.15); color: #a855f7; border: 1px solid rgba(168,85,247,0.3); padding: 4px 12px; border-radius: 20px; font-size: 0.78rem; font-weight: 700; }
+
+    /* Motion classes */
+    .motion-on { color: #f59e0b !important; font-weight: 700; }
+    .motion-off { color: var(--text-secondary) !important; }
+
+    /* Unread notification */
+    .log-item.unread { background: rgba(0,212,255,0.03); border-left: 2px solid var(--accent-blue); padding-left: 10px; }
+
+    /* Party mode background */
+    .party-active .main-content { animation: partyLightPulse 0.5s ease-in-out infinite; }
+
+    /* Connection status bar */
+    .conn-status-bar {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      padding: 8px 16px;
+      background: rgba(0,0,0,0.3);
+      border-radius: 10px;
+      font-size: 0.78rem;
+    }
+
+    /* Control source indicator */
+    .control-source-card {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 16px 20px;
+      background: rgba(124,58,237,0.1);
+      border: 1px solid rgba(124,58,237,0.3);
+      border-radius: 12px;
+    }
+
+    /* Progress circle */
+    .progress-circle-svg circle.track {
+      fill: none;
+      stroke: rgba(255,255,255,0.07);
+    }
+    .progress-circle-svg circle.progress {
+      fill: none;
+      stroke-linecap: round;
+      transition: stroke-dashoffset 0.5s ease;
+    }
+
+    /* Sensor activity log */
+    .activity-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--accent-blue);
+      flex-shrink: 0;
+      margin-top: 6px;
+    }
+
+    /* Flowchart styles */
+    .flowchart-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0;
+    }
+
+    .flowchart-row {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      width: 100%;
+      justify-content: center;
+    }
+
+    .flowchart-connector {
+      width: 2px;
+      height: 30px;
+      background: linear-gradient(to bottom, var(--accent-blue), var(--accent-purple));
+      margin: 0 auto;
+    }
+
+    .flowchart-connector-h {
+      height: 2px;
+      flex: 1;
+      background: linear-gradient(to right, var(--accent-blue), var(--accent-purple));
+      max-width: 60px;
+    }
+
+    .flowchart-label {
+      font-size: 0.7rem;
+      color: var(--text-muted);
+      text-align: center;
+      padding: 2px 6px;
+    }
+
+    /* Brightness control */
+    .brightness-display {
+      font-size: 4rem;
+      font-weight: 900;
+      font-family: 'Space Grotesk', sans-serif;
+      line-height: 1;
+    }
+
+    /* Party disco effect */
+    .disco-light {
+      position: fixed;
+      pointer-events: none;
+      border-radius: 50%;
+      mix-blend-mode: screen;
+      z-index: 1;
+    }
+
+    /* Neon divider */
+    .neon-divider {
+      height: 1px;
+      background: linear-gradient(90deg, transparent, var(--accent-blue), var(--accent-purple), transparent);
+      margin: 24px 0;
+    }
+
+    /* Command button grid */
+    .bt-cmd-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: 10px;
+    }
+
+    .bt-cmd-btn {
+      padding: 12px 8px;
+      background: var(--bg-glass);
+      border: 1px solid var(--border-glass);
+      border-radius: 10px;
+      color: var(--text-primary);
+      font-family: 'Outfit', sans-serif;
+      font-size: 0.82rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: var(--transition);
+      text-align: center;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .bt-cmd-btn:hover {
+      background: rgba(0,212,255,0.1);
+      border-color: rgba(0,212,255,0.3);
+      color: var(--accent-blue);
+      transform: translateY(-2px);
+    }
+
+    .bt-cmd-btn i { font-size: 1.3rem; }
+
+    /* Settings form */
+    .settings-input {
+      background: rgba(255,255,255,0.05);
+      border: 1px solid var(--border-glass);
+      border-radius: 8px;
+      color: var(--text-primary);
+      padding: 10px 14px;
+      width: 100%;
+      font-family: 'Outfit', sans-serif;
+      font-size: 0.9rem;
+      transition: var(--transition);
+    }
+
+    .settings-input:focus {
+      outline: none;
+      border-color: var(--accent-blue);
+      box-shadow: 0 0 0 2px rgba(0,212,255,0.1);
+    }
+
+    .settings-label {
+      font-size: 0.82rem;
+      font-weight: 600;
+      color: var(--text-secondary);
+      margin-bottom: 6px;
+      display: block;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    /* Motion overlay for room visualization */
+    #motion-overlay {
+      position: absolute;
+      inset: 0;
+      background: rgba(245,158,11,0.08);
+      border-radius: var(--border-radius);
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+
+    /* Conn badge */
+    .conn-badge {
+      display: inline-block;
+      padding: 3px 12px;
+      border-radius: 20px;
+      font-size: 0.75rem;
+      font-weight: 700;
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    /* Gauge wrapper */
+    .gauge-wrapper {
+      position: relative;
+      display: inline-flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+    }
+
+    /* Landing page override — keep scrollable */
+    body.landing-mode { overflow-y: auto; }
+  </style>
+</head>
+<body>
+
+<!-- Particle Background -->
+<canvas id="particle-canvas"></canvas>
+<!-- Grid Background -->
+<div class="grid-bg"></div>
+
+<!-- Toast Container -->
+<div class="toast-container" id="toast-container"></div>
+
+<!-- Party BG -->
+<div id="party-bg" style="display:none;">
+  <div class="disco-light" style="width:300px;height:300px;background:radial-gradient(circle,rgba(255,0,110,0.15),transparent);top:10%;left:10%;animation:partyLightPulse 0.3s infinite;"></div>
+  <div class="disco-light" style="width:400px;height:400px;background:radial-gradient(circle,rgba(131,56,236,0.12),transparent);top:30%;right:5%;animation:partyLightPulse 0.5s 0.2s infinite;"></div>
+  <div class="disco-light" style="width:250px;height:250px;background:radial-gradient(circle,rgba(58,134,255,0.15),transparent);bottom:10%;left:40%;animation:partyLightPulse 0.4s 0.1s infinite;"></div>
+</div>
+
+<!-- App Layout -->
+<div class="app-layout">
+
+  <!-- ========================
+       SIDEBAR
+       ======================== -->
+  <aside class="sidebar" id="sidebar">
+    <!-- Logo -->
+    <div class="sidebar-logo">
+      <div class="logo-icon animate-pulse-blue">💡</div>
+      <div>
+        <div class="logo-text gradient-text">SmartLight</div>
+        <div class="logo-sub">IoT Dashboard v1.0</div>
+      </div>
+    </div>
+
+    <!-- Nav -->
+    <nav class="sidebar-nav">
+      <div class="nav-section-label">Main</div>
+
+      <a class="nav-item active" data-page="dashboard" onclick="navigateTo('dashboard')" href="#">
+        <span class="nav-icon"><i class="fa-solid fa-gauge-high"></i></span>
+        Dashboard
+      </a>
+
+      <a class="nav-item" data-page="sensors" onclick="navigateTo('sensors')" href="#">
+        <span class="nav-icon"><i class="fa-solid fa-microchip"></i></span>
+        Sensor Monitoring
+      </a>
+
+      <a class="nav-item" data-page="control" onclick="navigateTo('control')" href="#">
+        <span class="nav-icon"><i class="fa-solid fa-sliders"></i></span>
+        Device Control
+      </a>
+
+      <a class="nav-item" data-page="modes" onclick="navigateTo('modes')" href="#">
+        <span class="nav-icon"><i class="fa-solid fa-wand-magic-sparkles"></i></span>
+        Lighting Modes
+      </a>
+
+      <div class="nav-section-label">Analytics</div>
+
+      <a class="nav-item" data-page="energy" onclick="navigateTo('energy')" href="#">
+        <span class="nav-icon"><i class="fa-solid fa-bolt"></i></span>
+        Energy Analytics
+      </a>
+
+      <a class="nav-item" data-page="visualization" onclick="navigateTo('visualization')" href="#">
+        <span class="nav-icon"><i class="fa-solid fa-house-signal"></i></span>
+        Smart Visualization
+      </a>
+
+      <div class="nav-section-label">Connectivity</div>
+
+      <a class="nav-item" data-page="bluetooth" onclick="navigateTo('bluetooth')" href="#">
+        <span class="nav-icon"><i class="fa-brands fa-bluetooth-b"></i></span>
+        Bluetooth
+      </a>
+
+      <a class="nav-item" data-page="notifications" onclick="navigateTo('notifications')" href="#">
+        <span class="nav-icon"><i class="fa-solid fa-bell"></i></span>
+        Notifications
+        <span class="nav-badge" id="notif-badge" style="display:none;">0</span>
+      </a>
+
+      <div class="nav-section-label">System</div>
+
+      <a class="nav-item" data-page="settings" onclick="navigateTo('settings')" href="#">
+        <span class="nav-icon"><i class="fa-solid fa-gear"></i></span>
+        Settings
+      </a>
+
+      <a class="nav-item" href="index.html">
+        <span class="nav-icon"><i class="fa-solid fa-home"></i></span>
+        Landing Page
+      </a>
+    </nav>
+
+    <!-- Footer Status -->
+    <div class="sidebar-footer">
+      <div class="connection-status-sidebar">
+        <span class="status-dot" id="sidebar-web-dot" style="background:var(--accent-green);box-shadow:0 0 8px var(--accent-green);"></span>
+        <span style="font-size:0.78rem;color:var(--text-secondary);">Web Online</span>
+        <span style="margin-left:auto;" class="status-dot offline" id="sidebar-bt-dot"></span>
+        <span style="font-size:0.78rem;color:var(--text-secondary);">BT</span>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Sidebar overlay for mobile -->
+  <div class="sidebar-overlay" id="sidebar-overlay" onclick="toggleSidebar()"></div>
+
+  <!-- ========================
+       MAIN CONTENT
+       ======================== -->
+  <main class="main-content">
+
+    <!-- TOP HEADER -->
+    <header class="top-header">
+      <button class="hamburger" onclick="toggleSidebar()">
+        <i class="fa-solid fa-bars"></i>
+      </button>
+
+      <div>
+        <div class="header-title" id="header-page-title">Dashboard</div>
+        <div class="header-subtitle" id="header-page-subtitle">Real-time system overview</div>
+      </div>
+
+      <div class="header-actions">
+        <!-- Day/Night -->
+        <span id="day-night-indicator" class="day-night-badge day">☀️ DAYTIME</span>
+
+        <!-- RTC Clock -->
+        <div class="rtc-display" id="rtc-display">00:00:00</div>
+
+        <!-- Notifications button -->
+        <button class="header-btn" onclick="navigateTo('notifications')" title="Notifications" style="position:relative;">
+          <i class="fa-solid fa-bell"></i>
+          <span id="notif-badge-header" style="position:absolute;top:-4px;right:-4px;width:16px;height:16px;background:var(--accent-red);border-radius:50%;font-size:0.6rem;display:flex;align-items:center;justify-content:center;font-weight:700;display:none;">0</span>
+        </button>
+
+        <!-- Bluetooth indicator -->
+        <button class="header-btn" onclick="navigateTo('bluetooth')" title="Bluetooth" id="header-bt-btn">
+          <i class="fa-brands fa-bluetooth-b"></i>
+        </button>
+
+        <!-- Settings -->
+        <button class="header-btn" onclick="navigateTo('settings')" title="Settings">
+          <i class="fa-solid fa-gear"></i>
+        </button>
+      </div>
+    </header>
+
+    <!-- ==================== PAGE CONTENT ==================== -->
+    <div class="page-content" id="page-content">
+
+      <!-- ========================
+           SECTION: DASHBOARD
+           ======================== -->
+      <section class="page-section active" id="section-dashboard">
+
+        <!-- Connection Status Bar -->
+        <div class="glass-card mb-24" style="padding:14px 20px;">
+          <div class="d-flex align-center justify-between flex-wrap gap-16">
+            <div class="d-flex align-center gap-16">
+              <div class="conn-status-bar">
+                <span class="status-dot online"></span>
+                <span>Website: <strong style="color:var(--accent-green);">ONLINE</strong></span>
+              </div>
+              <div class="conn-status-bar">
+                <span class="status-dot" id="dash-bt-dot" style="background:var(--accent-red);"></span>
+                <span>Bluetooth: <strong id="dash-bt-label" style="color:var(--text-secondary);">DISCONNECTED</strong></span>
+              </div>
+              <div class="conn-status-bar">
+                <span class="status-dot blue"></span>
+                <span>Control: <strong id="kpi-control-source" style="color:var(--accent-green);">🌐 Website</strong></span>
+              </div>
+            </div>
+            <div class="d-flex align-center gap-12">
+              <span id="day-night-indicator-3" class="day-night-badge day">☀️ DAYTIME</span>
+              <button class="btn-neon btn-secondary btn-sm" onclick="navigateTo('bluetooth')">
+                <i class="fa-brands fa-bluetooth-b"></i> Connect BLE
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- KPI Cards Row 1 -->
+        <div class="kpi-grid mb-24">
+          <!-- System Status -->
+          <div class="glass-card kpi-card blue">
+            <div class="kpi-icon blue"><i class="fa-solid fa-power-off"></i></div>
+            <div class="kpi-value" id="kpi-system-status" style="color:var(--accent-green);">ONLINE</div>
+            <div class="kpi-label">System Status</div>
+            <div class="kpi-change positive"><i class="fa-solid fa-arrow-up"></i> All systems operational</div>
+          </div>
+
+          <!-- LED Status -->
+          <div class="glass-card kpi-card yellow">
+            <div class="kpi-icon yellow"><i class="fa-solid fa-lightbulb"></i></div>
+            <div class="kpi-value" id="kpi-led-status" style="color:var(--text-secondary);">OFF</div>
+            <div class="kpi-label">LED Status</div>
+            <div class="d-flex align-center gap-8 mt-8">
+              <div class="led-indicator off" style="width:12px;height:12px;"></div>
+              <span class="text-xs text-muted">Main LED Array</span>
+            </div>
+          </div>
+
+          <!-- Brightness -->
+          <div class="glass-card kpi-card green">
+            <div class="kpi-icon green"><i class="fa-solid fa-sun"></i></div>
+            <div class="kpi-value" id="kpi-brightness">0%</div>
+            <div class="kpi-label">Current Brightness</div>
+            <div class="sensor-bar mt-8">
+              <div class="sensor-bar-fill ldr-bar-fill" id="brightness-kpi-bar" style="width:0%;background:linear-gradient(90deg,#10b981,#f59e0b);"></div>
+            </div>
+          </div>
+
+          <!-- PIR Motion -->
+          <div class="glass-card kpi-card yellow">
+            <div class="kpi-icon yellow"><i class="fa-solid fa-person-walking"></i></div>
+            <div class="kpi-value motion-off text-sm" id="kpi-pir">NO MOTION</div>
+            <div class="kpi-label">PIR Sensor</div>
+            <div class="d-flex align-center gap-8 mt-8">
+              <span class="status-dot online" id="pir-dot"></span>
+              <span class="text-xs text-muted">Fresnel Lens Sensor</span>
+            </div>
+          </div>
+
+          <!-- LDR -->
+          <div class="glass-card kpi-card blue">
+            <div class="kpi-icon blue"><i class="fa-solid fa-eye"></i></div>
+            <div class="kpi-value" id="ldr-value">65%</div>
+            <div class="kpi-label">LDR Light Level</div>
+            <div class="sensor-bar mt-8">
+              <div class="sensor-bar-fill ldr-bar-fill" style="width:65%;"></div>
+            </div>
+          </div>
+
+          <!-- Lighting Mode -->
+          <div class="glass-card kpi-card purple">
+            <div class="kpi-icon purple"><i class="fa-solid fa-wand-magic-sparkles"></i></div>
+            <div class="kpi-value text-sm" id="kpi-mode">Automatic</div>
+            <div class="kpi-label">Active Mode</div>
+            <div class="kpi-change" style="color:var(--accent-violet);">
+              <i class="fa-solid fa-robot"></i> Sensor-driven
+            </div>
+          </div>
+
+          <!-- BT Status -->
+          <div class="glass-card kpi-card pink">
+            <div class="kpi-icon pink"><i class="fa-brands fa-bluetooth-b"></i></div>
+            <div class="kpi-value text-sm" id="kpi-bt-status" style="color:var(--text-secondary);">DISCONNECTED</div>
+            <div class="kpi-label">Bluetooth BLE</div>
+            <div class="kpi-change" style="color:var(--text-muted);">
+              <i class="fa-solid fa-signal"></i> No active connection
+            </div>
+          </div>
+
+          <!-- Energy Saved -->
+          <div class="glass-card kpi-card green">
+            <div class="kpi-icon green"><i class="fa-solid fa-leaf"></i></div>
+            <div class="kpi-value" id="kpi-energy-saved">12.4 kWh</div>
+            <div class="kpi-label">Energy Saved</div>
+            <div class="kpi-change positive"><i class="fa-solid fa-arrow-up"></i> vs. incandescent</div>
+          </div>
+
+          <!-- Runtime -->
+          <div class="glass-card kpi-card orange">
+            <div class="kpi-icon orange"><i class="fa-solid fa-clock"></i></div>
+            <div class="kpi-value" id="kpi-runtime">0 min</div>
+            <div class="kpi-label">Session Runtime</div>
+            <div class="kpi-change positive"><i class="fa-solid fa-circle"></i> Active session</div>
+          </div>
+        </div>
+
+        <!-- RTC + Quick Control Row -->
+        <div class="grid-2 mb-24">
+          <!-- RTC Display -->
+          <div class="glass-card" style="padding:28px;">
+            <div class="d-flex align-center gap-12 mb-16">
+              <div style="width:40px;height:40px;border-radius:10px;background:rgba(0,212,255,0.15);display:flex;align-items:center;justify-content:center;color:var(--accent-blue);">
+                <i class="fa-solid fa-clock"></i>
+              </div>
+              <div>
+                <div class="font-bold">RTC Module DS3231</div>
+                <div class="text-xs text-muted">Real-Time Clock</div>
+              </div>
+            </div>
+            <div class="text-center mb-16">
+              <div style="font-size:3rem;font-weight:900;font-family:'JetBrains Mono',monospace;color:var(--accent-blue);text-shadow:0 0 20px rgba(0,212,255,0.5);" id="kpi-rtc-time">00:00:00</div>
+              <div style="font-size:1rem;color:var(--text-secondary);margin-top:6px;" id="kpi-rtc-date">Loading...</div>
+            </div>
+            <div class="d-flex justify-center">
+              <span id="day-night-indicator-2" class="day-night-badge day">☀️ DAYTIME</span>
+            </div>
+          </div>
+
+          <!-- Quick LED Control -->
+          <div class="glass-card" style="padding:28px;">
+            <div class="d-flex align-center gap-12 mb-20">
+              <div style="width:40px;height:40px;border-radius:10px;background:rgba(245,158,11,0.15);display:flex;align-items:center;justify-content:center;color:var(--accent-yellow);">
+                <i class="fa-solid fa-lightbulb"></i>
+              </div>
+              <div>
+                <div class="font-bold">Quick LED Control</div>
+                <div class="text-xs text-muted">Manual override</div>
+              </div>
+              <div class="ms-auto">
+                <label class="toggle-switch led-power-toggle">
+                  <input type="checkbox" onchange="Lighting.setLED(this.checked, this.checked ? 80 : 0)"/>
+                  <span class="toggle-slider"></span>
+                </label>
+              </div>
+            </div>
+
+            <!-- LED Visual -->
+            <div class="text-center mb-20">
+              <div class="led-indicator led-large off" style="margin:0 auto;"></div>
+            </div>
+
+            <!-- Brightness Slider -->
+            <div class="mb-12 d-flex justify-between">
+              <span class="text-sm text-muted">Brightness</span>
+              <span class="text-sm brightness-value-display font-mono" style="color:var(--accent-blue);">0%</span>
+            </div>
+            <div class="slider-container" style="position:relative;">
+              <div class="slider-track-fill" style="width:0%;position:absolute;top:50%;transform:translateY(-50%);height:6px;background:linear-gradient(90deg,var(--accent-blue),var(--accent-purple));border-radius:3px;pointer-events:none;z-index:1;"></div>
+              <input type="range" class="brightness-slider" min="0" max="100" value="0"
+                oninput="Lighting.setBrightness(parseInt(this.value));updateSliderFill(this)"
+                style="position:relative;z-index:2;background:transparent;"/>
+            </div>
+
+            <div class="d-flex gap-8 mt-20">
+              <button class="btn-neon btn-success btn-sm w-100 led-toggle-btn" onclick="Lighting.setLED(true, 80)">
+                <i class="fa-solid fa-lightbulb"></i> Turn ON
+              </button>
+              <button class="btn-neon btn-danger btn-sm w-100" onclick="Lighting.setLED(false, 0)">
+                <i class="fa-solid fa-power-off"></i> Turn OFF
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Autonomous Mode Flowchart -->
+        <div class="glass-card mb-24" style="padding:28px;">
+          <div class="section-header mb-20">
+            <div class="d-flex align-center gap-12">
+              <i class="fa-solid fa-robot" style="font-size:1.3rem;color:var(--accent-violet);"></i>
+              <div>
+                <div class="font-bold text-lg">Fail-Safe Automation Logic</div>
+                <div class="text-xs text-muted">System operates autonomously when disconnected</div>
+              </div>
+            </div>
+          </div>
+          <div class="grid-2" style="gap:30px;">
+            <!-- Daytime Logic -->
+            <div>
+              <div style="text-align:center;color:var(--accent-yellow);font-weight:700;margin-bottom:16px;font-size:0.9rem;">
+                ☀️ DAYTIME LOGIC
+              </div>
+              <div class="flowchart-container">
+                <div class="flowchart-node decision">LDR &gt; 40% (Bright)</div>
+                <div class="flowchart-connector"></div>
+                <div class="flowchart-row">
+                  <div>
+                    <div class="flowchart-label">Motion?</div>
+                    <div class="flowchart-connector-h"></div>
+                  </div>
+                  <div>
+                    <div class="flowchart-node action-off" style="min-width:140px;">💡 LED OFF<br/><span style="font-size:0.7rem;opacity:0.7;">Light not needed</span></div>
+                  </div>
+                </div>
+                <div class="flowchart-connector"></div>
+                <div class="flowchart-node action-off">💡 LED OFF (Always)</div>
+              </div>
+            </div>
+
+            <!-- Nighttime Logic -->
+            <div>
+              <div style="text-align:center;color:var(--accent-violet);font-weight:700;margin-bottom:16px;font-size:0.9rem;">
+                🌙 NIGHTTIME LOGIC
+              </div>
+              <div class="flowchart-container">
+                <div class="flowchart-node decision">LDR &lt; 25% (Dark)</div>
+                <div class="flowchart-connector"></div>
+                <div class="flowchart-row">
+                  <div style="display:flex;flex-direction:column;align-items:center;gap:4px;">
+                    <div class="flowchart-node action-on" style="min-width:120px;">✅ Motion<br/><small>PIR Active</small></div>
+                    <div class="flowchart-connector" style="height:16px;"></div>
+                    <div class="flowchart-node action-on">💡 LED ON (80%)</div>
+                  </div>
+                  <div style="width:20px;height:2px;background:var(--accent-red);margin-top:16px;"></div>
+                  <div style="display:flex;flex-direction:column;align-items:center;gap:4px;">
+                    <div class="flowchart-node" style="min-width:120px;border-color:rgba(239,68,68,0.3);">❌ No Motion<br/><small>30s timeout</small></div>
+                    <div class="flowchart-connector" style="height:16px;"></div>
+                    <div class="flowchart-node action-off">💡 LED OFF</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Priority Order -->
+          <div class="neon-divider"></div>
+          <div class="d-flex align-center gap-12 flex-wrap">
+            <div style="font-size:0.8rem;color:var(--text-secondary);font-weight:600;">PRIORITY ORDER:</div>
+            <div class="badge-green">① Manual (Website)</div>
+            <div style="color:var(--text-muted);">→</div>
+            <div class="badge-blue">② Bluetooth Control</div>
+            <div style="color:var(--text-muted);">→</div>
+            <div class="badge-purple">③ Autonomous (Arduino)</div>
+          </div>
+        </div>
+
+      </section>
+
+      <!-- ========================
+           SECTION: SENSORS
+           ======================== -->
+      <section class="page-section" id="section-sensors">
+        <div class="section-header">
+          <h2 class="section-title"><i class="fa-solid fa-microchip" style="color:var(--accent-blue);"></i> Sensor Monitoring</h2>
+          <p class="section-subtitle">Live readings from PIR, LDR and RTC sensors</p>
+        </div>
+
+        <div class="grid-3 mb-24">
+          <!-- PIR Card -->
+          <div class="glass-card sensor-card">
+            <div class="d-flex align-center justify-between">
+              <div class="d-flex align-center gap-12">
+                <div class="kpi-icon yellow" style="width:44px;height:44px;" id="motion-icon-anim">
+                  <i class="fa-solid fa-person-walking"></i>
+                </div>
+                <div>
+                  <div class="font-bold">PIR Motion Sensor</div>
+                  <div class="text-xs text-muted">HC-SR501 Fresnel Lens</div>
+                </div>
+              </div>
+              <span class="status-dot online"></span>
+            </div>
+
+            <div class="sensor-reading">
+              <span>Detection Status</span>
+              <span class="sensor-reading-value motion-off" id="sensor-pir-status">NO MOTION</span>
+            </div>
+
+            <div class="sensor-reading">
+              <span>Sensitivity</span>
+              <span class="sensor-reading-value font-mono" style="color:var(--accent-yellow);">HIGH</span>
+            </div>
+
+            <div class="sensor-reading">
+              <span>Range</span>
+              <span class="sensor-reading-value font-mono">7 meters</span>
+            </div>
+
+            <div class="sensor-reading">
+              <span>Delay Time</span>
+              <span class="sensor-reading-value font-mono">3 seconds</span>
+            </div>
+
+            <!-- Motion Animation -->
+            <div class="text-center" style="padding:16px 0;">
+              <div class="motion-indicator" style="width:60px;height:60px;margin:0 auto;" id="pir-motion-indicator">
+                <div class="kpi-icon yellow" style="width:60px;height:60px;font-size:1.5rem;position:relative;z-index:2;">
+                  <i class="fa-solid fa-person-walking"></i>
+                </div>
+              </div>
+              <div class="text-xs text-muted mt-8">Motion detection zone active</div>
+            </div>
+          </div>
+
+          <!-- LDR Card -->
+          <div class="glass-card sensor-card">
+            <div class="d-flex align-center justify-between">
+              <div class="d-flex align-center gap-12">
+                <div class="kpi-icon blue" style="width:44px;height:44px;">
+                  <span class="ldr-icon">🌤️</span>
+                </div>
+                <div>
+                  <div class="font-bold">LDR Light Sensor</div>
+                  <div class="text-xs text-muted">Photoresistor GL5528</div>
+                </div>
+              </div>
+              <span class="status-dot online"></span>
+            </div>
+
+            <!-- Progress Circle -->
+            <div class="text-center" style="padding:16px 0;">
+              <div class="gauge-wrapper">
+                <svg class="progress-circle-svg" width="120" height="120" viewBox="0 0 120 120">
+                  <circle class="track" cx="60" cy="60" r="54" stroke-width="8"/>
+                  <circle class="progress brightness-circle-progress" cx="60" cy="60" r="54"
+                    stroke-width="8" stroke="url(#progressGrad)" stroke-dasharray="339"
+                    stroke-dashoffset="339" transform="rotate(-90 60 60)"
+                    style="transition:stroke-dashoffset 0.5s ease;"/>
+                  <defs>
+                    <linearGradient id="progressGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                      <stop offset="0%" style="stop-color:#00d4ff;stop-opacity:1"/>
+                      <stop offset="100%" style="stop-color:#a855f7;stop-opacity:1"/>
+                    </linearGradient>
+                  </defs>
+                  <text x="60" y="55" text-anchor="middle" fill="var(--text-primary)" font-size="16" font-family="Space Grotesk" font-weight="700" class="brightness-circle-text">0%</text>
+                  <text x="60" y="72" text-anchor="middle" fill="var(--text-secondary)" font-size="9" font-family="JetBrains Mono">LIGHT</text>
+                </svg>
+              </div>
+            </div>
+
+            <div class="sensor-reading">
+              <span>Light Level</span>
+              <span class="sensor-reading-value" id="sensor-ldr-value" style="color:var(--accent-blue);">65%</span>
+            </div>
+
+            <div class="sensor-reading">
+              <span>Raw ADC Value</span>
+              <span class="sensor-reading-value font-mono text-muted">0–1023</span>
+            </div>
+
+            <div class="sensor-reading">
+              <span>Ambient Status</span>
+              <span class="sensor-reading-value" id="ambient-light-status" style="font-size:0.9rem;">MODERATE</span>
+            </div>
+
+            <div class="mb-8">
+              <div class="sensor-bar">
+                <div class="sensor-bar-fill ldr-bar-fill" style="width:65%;background:linear-gradient(90deg,var(--accent-blue),var(--accent-green));"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- RTC Card -->
+          <div class="glass-card sensor-card">
+            <div class="d-flex align-center justify-between">
+              <div class="d-flex align-center gap-12">
+                <div class="kpi-icon blue" style="width:44px;height:44px;">
+                  <i class="fa-solid fa-clock"></i>
+                </div>
+                <div>
+                  <div class="font-bold">RTC Module</div>
+                  <div class="text-xs text-muted">DS3231 High-Precision</div>
+                </div>
+              </div>
+              <span class="status-dot online"></span>
+            </div>
+
+            <div class="text-center" style="padding:20px 0;">
+              <div style="font-size:2.5rem;font-weight:900;font-family:'JetBrains Mono',monospace;color:var(--accent-blue);text-shadow:0 0 15px rgba(0,212,255,0.4);" id="sensor-rtc-time">00:00:00</div>
+              <div style="color:var(--text-secondary);font-size:0.85rem;margin-top:8px;" id="sensor-rtc-date">Loading...</div>
+            </div>
+
+            <div class="sensor-reading">
+              <span>Accuracy</span>
+              <span class="sensor-reading-value font-mono" style="color:var(--accent-green);">±2 ppm</span>
+            </div>
+
+            <div class="sensor-reading">
+              <span>Protocol</span>
+              <span class="sensor-reading-value font-mono">I²C</span>
+            </div>
+
+            <div class="sensor-reading">
+              <span>Battery Backup</span>
+              <span class="sensor-reading-value font-mono" style="color:var(--accent-green);">CR2032</span>
+            </div>
+
+            <div class="sensor-reading">
+              <span>Time Period</span>
+              <span class="sensor-reading-value" id="sensor-daynight" style="color:var(--accent-yellow);">DAYTIME</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Activity Log -->
+        <div class="glass-card" style="padding:28px;">
+          <div class="d-flex align-center justify-between mb-20">
+            <div class="font-bold text-lg"><i class="fa-solid fa-list-check" style="color:var(--accent-blue);margin-right:10px;"></i>Sensor Activity Log</div>
+            <button class="btn-neon btn-secondary btn-sm" onclick="Notifications.markAllRead()">Clear</button>
+          </div>
+          <div id="notification-log" style="max-height:300px;overflow-y:auto;">
+            <div class="log-item">
+              <div class="activity-dot"></div>
+              <div class="log-content">
+                <div class="log-title">System initialized</div>
+                <div class="log-desc">All sensors online and reporting</div>
+                <div class="log-time font-mono">Loading...</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ========================
+           SECTION: DEVICE CONTROL
+           ======================== -->
+      <section class="page-section" id="section-control">
+        <div class="section-header">
+          <h2 class="section-title"><i class="fa-solid fa-sliders" style="color:var(--accent-green);"></i> Device Control</h2>
+          <p class="section-subtitle">Manual LED control and brightness adjustment</p>
+        </div>
+
+        <div class="grid-2 mb-24">
+          <!-- Main LED Control -->
+          <div class="glass-card" style="padding:36px;">
+            <div class="d-flex align-center gap-12 mb-28">
+              <div class="kpi-icon yellow" style="width:52px;height:52px;font-size:1.5rem;">
+                <i class="fa-solid fa-lightbulb"></i>
+              </div>
+              <div>
+                <div class="font-bold" style="font-size:1.2rem;">LED Light Control</div>
+                <div class="text-sm text-muted">Arduino PWM Output</div>
+              </div>
+              <div class="ms-auto">
+                <label class="toggle-switch led-power-toggle" style="width:70px;height:36px;">
+                  <input type="checkbox" onchange="Lighting.setLED(this.checked, this.checked ? parseInt(document.querySelector('.brightness-slider').value)||80 : 0)"/>
+                  <span class="toggle-slider"></span>
+                </label>
+              </div>
+            </div>
+
+            <!-- Huge LED Visual -->
+            <div class="text-center mb-28" style="position:relative;">
+              <div class="led-indicator led-large off" style="width:100px;height:100px;margin:0 auto;font-size:2.5rem;display:flex;align-items:center;justify-content:center;">
+              </div>
+              <!-- Glow halo -->
+              <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:200px;height:200px;border-radius:50%;background:radial-gradient(circle,rgba(255,170,0,0.1),transparent);pointer-events:none;transition:all 0.5s;"></div>
+            </div>
+
+            <!-- Brightness Display -->
+            <div class="text-center mb-20">
+              <div class="brightness-display gradient-text brightness-circle-text">0%</div>
+              <div class="text-sm text-muted">Current Brightness</div>
+            </div>
+
+            <!-- Brightness Slider -->
+            <div class="mb-8 d-flex justify-between">
+              <span class="text-sm text-muted font-mono">0%</span>
+              <span class="text-sm font-mono brightness-value-display" style="color:var(--accent-blue);">0%</span>
+              <span class="text-sm text-muted font-mono">100%</span>
+            </div>
+            <div class="slider-container mb-24" style="position:relative;">
+              <div class="slider-track-fill" style="width:0%;"></div>
+              <input type="range" class="brightness-slider" min="0" max="100" value="0"
+                oninput="Lighting.setBrightness(parseInt(this.value));updateSliderFill(this)"/>
+            </div>
+
+            <!-- Preset Brightness Buttons -->
+            <div class="d-flex gap-8 flex-wrap mb-20">
+              <button class="btn-neon btn-secondary btn-sm" onclick="Lighting.setBrightness(25);syncSliders(25)">25%</button>
+              <button class="btn-neon btn-secondary btn-sm" onclick="Lighting.setBrightness(50);syncSliders(50)">50%</button>
+              <button class="btn-neon btn-secondary btn-sm" onclick="Lighting.setBrightness(75);syncSliders(75)">75%</button>
+              <button class="btn-neon btn-secondary btn-sm" onclick="Lighting.setBrightness(100);syncSliders(100)">100%</button>
+            </div>
+
+            <!-- ON/OFF Buttons -->
+            <div class="d-flex gap-12">
+              <button class="btn-neon btn-success w-100" onclick="Lighting.setLED(true, 80)">
+                <i class="fa-solid fa-lightbulb"></i> Turn ON
+              </button>
+              <button class="btn-neon btn-danger w-100" onclick="Lighting.setLED(false, 0)">
+                <i class="fa-solid fa-power-off"></i> Turn OFF
+              </button>
+            </div>
+          </div>
+
+          <!-- Right Column -->
+          <div style="display:flex;flex-direction:column;gap:20px;">
+            <!-- Status Card -->
+            <div class="glass-card" style="padding:24px;">
+              <div class="font-bold mb-16"><i class="fa-solid fa-circle-info" style="color:var(--accent-blue);margin-right:8px;"></i>LED System Info</div>
+              <div class="sensor-reading mb-8">
+                <span class="text-sm">LED Type</span>
+                <span class="font-mono text-sm" style="color:var(--accent-blue);">High-Power LED Array</span>
+              </div>
+              <div class="sensor-reading mb-8">
+                <span class="text-sm">PWM Control</span>
+                <span class="font-mono text-sm" style="color:var(--accent-green);">Arduino Pin 9</span>
+              </div>
+              <div class="sensor-reading mb-8">
+                <span class="text-sm">Rated Power</span>
+                <span class="font-mono text-sm">15W Max</span>
+              </div>
+              <div class="sensor-reading mb-8">
+                <span class="text-sm">Voltage</span>
+                <span class="font-mono text-sm">12V DC</span>
+              </div>
+              <div class="sensor-reading">
+                <span class="text-sm">Est. Power Now</span>
+                <span class="font-mono text-sm" id="est-power">0.0 W</span>
+              </div>
+            </div>
+
+            <!-- Circular Brightness Gauge -->
+            <div class="glass-card text-center" style="padding:28px;">
+              <div class="font-bold mb-16">Brightness Gauge</div>
+              <div class="gauge-wrapper">
+                <svg width="160" height="160" viewBox="0 0 160 160">
+                  <circle cx="80" cy="80" r="70" fill="none" stroke="rgba(255,255,255,0.05)" stroke-width="12"/>
+                  <circle class="brightness-circle-progress" cx="80" cy="80" r="70"
+                    fill="none" stroke="url(#gaugeGrad)" stroke-width="12"
+                    stroke-linecap="round" stroke-dasharray="440" stroke-dashoffset="440"
+                    transform="rotate(-90 80 80)"/>
+                  <defs>
+                    <linearGradient id="gaugeGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                      <stop offset="0%" style="stop-color:#00d4ff;stop-opacity:1"/>
+                      <stop offset="100%" style="stop-color:#f59e0b;stop-opacity:1"/>
+                    </linearGradient>
+                  </defs>
+                  <text x="80" y="72" text-anchor="middle" fill="var(--text-primary)" font-size="28" font-family="Space Grotesk" font-weight="800" class="brightness-circle-text">0%</text>
+                  <text x="80" y="94" text-anchor="middle" fill="var(--text-secondary)" font-size="11" font-family="JetBrains Mono">BRIGHTNESS</text>
+                </svg>
+              </div>
+              <div class="d-flex align-center justify-center gap-8 mt-12">
+                <div class="led-indicator off" style="width:14px;height:14px;"></div>
+                <span class="text-sm font-mono" id="led-on-off-label">LED OFF</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ========================
+           SECTION: LIGHTING MODES
+           ======================== -->
+      <section class="page-section" id="section-modes">
+        <div class="section-header">
+          <h2 class="section-title"><i class="fa-solid fa-wand-magic-sparkles" style="color:var(--accent-violet);"></i> Lighting Modes</h2>
+          <p class="section-subtitle">Intelligent automated lighting scenarios</p>
+        </div>
+
+        <!-- Active Mode Banner -->
+        <div class="glass-card mb-24" style="padding:20px 28px;background:linear-gradient(135deg,rgba(124,58,237,0.15),rgba(0,212,255,0.08));">
+          <div class="d-flex align-center justify-between">
+            <div class="d-flex align-center gap-16">
+              <div style="font-size:2.5rem;" id="active-mode-icon">🤖</div>
+              <div>
+                <div class="font-bold text-lg" id="active-mode-name">Automatic Mode Active</div>
+                <div class="text-sm text-muted" id="active-mode-desc">Sensors control lighting automatically based on PIR and LDR data</div>
+              </div>
+            </div>
+            <div class="waveform">
+              <div class="waveform-bar"></div>
+              <div class="waveform-bar"></div>
+              <div class="waveform-bar"></div>
+              <div class="waveform-bar"></div>
+              <div class="waveform-bar"></div>
+              <div class="waveform-bar"></div>
+              <div class="waveform-bar"></div>
+              <div class="waveform-bar"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Mode Cards Grid -->
+        <div class="grid-auto mb-24">
+
+          <!-- AUTOMATIC MODE -->
+          <div class="glass-card mode-card active" data-mode="AUTO" onclick="selectMode(this,'AUTO')">
+            <span class="mode-badge badge-blue">ACTIVE</span>
+            <span class="mode-icon-large">🤖</span>
+            <div class="mode-title gradient-text">Automatic Mode</div>
+            <div class="mode-desc">
+              PIR + LDR + RTC based intelligent control. Auto ON when dark + motion, auto OFF after timeout.
+            </div>
+            <div class="d-flex align-center gap-8 mt-16">
+              <span class="status-dot online"></span>
+              <span class="text-xs text-muted">Sensor-driven automation</span>
+            </div>
+          </div>
+
+          <!-- SLEEP MODE -->
+          <div class="glass-card mode-card sleep" data-mode="SLEEP" onclick="selectMode(this,'SLEEP')">
+            <span class="mode-badge badge-purple" style="background:rgba(168,85,247,0.2);color:#a855f7;border-color:rgba(168,85,247,0.4);">INACTIVE</span>
+            <span class="mode-icon-large sleep-mode-icon">🌙</span>
+            <div class="mode-title" style="color:var(--accent-violet);">Sleep Mode</div>
+            <div class="mode-desc">
+              Energy-saving mode. Gradually dims LED to 20%. Warm lighting, smooth fade. Saves up to 80% power.
+            </div>
+            <div style="margin-top:16px;padding:12px;background:rgba(168,85,247,0.08);border-radius:8px;border:1px solid rgba(168,85,247,0.2);">
+              <div class="d-flex justify-between text-xs">
+                <span>Target Brightness</span><strong style="color:#a855f7;">20%</strong>
+              </div>
+              <div class="d-flex justify-between text-xs mt-4">
+                <span>Energy Savings</span><strong style="color:var(--accent-green);">~80%</strong>
+              </div>
+            </div>
+          </div>
+
+          <!-- PARTY MODE -->
+          <div class="glass-card mode-card party" data-mode="PARTY" onclick="selectMode(this,'PARTY')">
+            <span class="mode-badge" style="background:rgba(236,72,153,0.2);color:#ec4899;border:1px solid rgba(236,72,153,0.4);">INACTIVE</span>
+            <span class="mode-icon-large">🎉</span>
+            <div class="mode-title" style="background:linear-gradient(135deg,#ff006e,#8338ec,#3a86ff);-webkit-background-clip:text;-webkit-text-fill-color:transparent;">Party Mode</div>
+            <div class="mode-desc">
+              Entertainment mode with dynamic LED blinking effects. Nightclub-inspired atmosphere.
+            </div>
+
+            <div class="mt-16">
+              <div class="d-flex justify-between text-xs mb-8">
+                <span>Blink Speed</span>
+                <span id="blink-speed-display" class="font-mono" style="color:var(--accent-pink);">500ms</span>
+              </div>
+              <input type="range" min="100" max="2000" step="100" value="500"
+                oninput="updateBlinkSpeed(this.value)"
+                style="width:100%;"/>
+            </div>
+
+            <div class="d-flex gap-8 mt-16">
+              <button class="btn-neon btn-party btn-sm w-100" onclick="event.stopPropagation();startParty()">
+                🎉 Start
+              </button>
+              <button class="btn-neon btn-secondary btn-sm w-100" onclick="event.stopPropagation();stopParty()">
+                ⏹ Stop
+              </button>
+            </div>
+          </div>
+
+          <!-- READING MODE -->
+          <div class="glass-card mode-card" data-mode="READING" onclick="selectMode(this,'READING')">
+            <span class="mode-badge" style="background:rgba(245,158,11,0.15);color:#f59e0b;border:1px solid rgba(245,158,11,0.3);">INACTIVE</span>
+            <span class="mode-icon-large">📖</span>
+            <div class="mode-title" style="color:var(--accent-yellow);">Reading Mode</div>
+            <div class="mode-desc">
+              Stable bright white lighting at 80% for comfortable reading and productivity. Zero flicker.
+            </div>
+            <div style="margin-top:16px;padding:12px;background:rgba(245,158,11,0.08);border-radius:8px;border:1px solid rgba(245,158,11,0.2);">
+              <div class="d-flex justify-between text-xs">
+                <span>Target Brightness</span><strong style="color:#f59e0b;">80%</strong>
+              </div>
+              <div class="d-flex justify-between text-xs mt-4">
+                <span>Color Temp</span><strong style="color:var(--accent-yellow);">Cool White</strong>
+              </div>
+            </div>
+          </div>
+
+          <!-- CUSTOM MODE -->
+          <div class="glass-card mode-card" data-mode="CUSTOM" onclick="selectMode(this,'CUSTOM')">
+            <span class="mode-badge badge-blue" style="background:rgba(0,212,255,0.1);border-color:rgba(0,212,255,0.3);">INACTIVE</span>
+            <span class="mode-icon-large">⚙️</span>
+            <div class="mode-title gradient-text">Custom Mode</div>
+            <div class="mode-desc">
+              Save personalized brightness settings and lighting profiles. Full manual control.
+            </div>
+            <div class="mt-16">
+              <div class="d-flex justify-between text-xs mb-8">
+                <span>Custom Brightness</span>
+                <span id="custom-brightness-display" class="font-mono" style="color:var(--accent-blue);">70%</span>
+              </div>
+              <input type="range" min="10" max="100" value="70"
+                oninput="AppState.customBrightness=parseInt(this.value);document.getElementById('custom-brightness-display').textContent=this.value+'%'"
+                onclick="event.stopPropagation()"
+                style="width:100%;"/>
+            </div>
+            <div class="mt-16 d-flex gap-8">
+              <button class="btn-neon btn-secondary btn-sm w-100" onclick="event.stopPropagation();saveCustomProfile()">
+                <i class="fa-solid fa-floppy-disk"></i> Save Profile
+              </button>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- No Motion Timeout Settings -->
+        <div class="glass-card" style="padding:24px;">
+          <div class="font-bold mb-16"><i class="fa-solid fa-timer" style="color:var(--accent-blue);margin-right:8px;"></i>Auto Mode Settings</div>
+          <div class="d-flex align-center gap-24 flex-wrap">
+            <div style="flex:1;min-width:200px;">
+              <label class="settings-label">No-Motion Timeout (seconds)</label>
+              <input type="number" class="settings-input" value="30" min="5" max="300"
+                onchange="AppState.noMotionTimeout=parseInt(this.value);Notifications.add('Settings','No-motion timeout set to '+this.value+'s','info','fa-timer')"/>
+            </div>
+            <div style="flex:1;min-width:200px;">
+              <label class="settings-label">LDR Dark Threshold (%)</label>
+              <input type="number" class="settings-input" value="25" min="5" max="60"
+                onchange="Notifications.add('Settings','LDR threshold set to '+this.value+'%','info','fa-sun')"/>
+            </div>
+            <div style="flex:1;min-width:200px;">
+              <label class="settings-label">Night Hour Start</label>
+              <input type="number" class="settings-input" value="18" min="16" max="22"
+                onchange="Notifications.add('Settings','Night mode starts at '+this.value+':00','info','fa-moon')"/>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ========================
+           SECTION: ENERGY ANALYTICS
+           ======================== -->
+      <section class="page-section" id="section-energy">
+        <div class="section-header">
+          <h2 class="section-title"><i class="fa-solid fa-bolt" style="color:var(--accent-yellow);"></i> Energy Analytics</h2>
+          <p class="section-subtitle">Power consumption trends and statistics</p>
+        </div>
+
+        <!-- Energy KPIs -->
+        <div class="kpi-grid mb-24">
+          <div class="glass-card energy-stat">
+            <div class="energy-stat-value" style="color:var(--accent-blue);">15W</div>
+            <div class="energy-stat-label">Max Power</div>
+          </div>
+          <div class="glass-card energy-stat">
+            <div class="energy-stat-value" id="energy-current" style="color:var(--accent-green);">0.0W</div>
+            <div class="energy-stat-label">Current Draw</div>
+          </div>
+          <div class="glass-card energy-stat">
+            <div class="energy-stat-value" style="color:var(--accent-violet);">48 Wh</div>
+            <div class="energy-stat-label">Today's Usage</div>
+          </div>
+          <div class="glass-card energy-stat">
+            <div class="energy-stat-value" style="color:var(--accent-yellow);">341 Wh</div>
+            <div class="energy-stat-label">Weekly Usage</div>
+          </div>
+          <div class="glass-card energy-stat">
+            <div class="energy-stat-value" id="kpi-energy-saved-2" style="color:var(--accent-green);">12.4 kWh</div>
+            <div class="energy-stat-label">Total Saved</div>
+          </div>
+          <div class="glass-card energy-stat">
+            <div class="energy-stat-value" style="color:var(--accent-orange);">₹18.5</div>
+            <div class="energy-stat-label">Monthly Cost Est.</div>
+          </div>
+        </div>
+
+        <!-- Charts -->
+        <div class="grid-2 mb-24">
+          <div class="glass-card" style="padding:24px;">
+            <div style="height:250px;" class="chart-container">
+              <canvas id="chart-daily"></canvas>
+            </div>
+          </div>
+          <div class="glass-card" style="padding:24px;">
+            <div style="height:250px;" class="chart-container">
+              <canvas id="chart-weekly"></canvas>
+            </div>
+          </div>
+        </div>
+
+        <div class="grid-2 mb-24">
+          <div class="glass-card" style="padding:24px;">
+            <div style="height:250px;" class="chart-container">
+              <canvas id="chart-monthly"></canvas>
+            </div>
+          </div>
+          <div class="glass-card" style="padding:24px;">
+            <div style="height:250px;" class="chart-container">
+              <canvas id="chart-brightness"></canvas>
+            </div>
+          </div>
+        </div>
+
+        <!-- Refresh Charts -->
+        <div class="text-center">
+          <button class="btn-neon btn-secondary" onclick="Charts.refreshAll()">
+            <i class="fa-solid fa-refresh"></i> Refresh Analytics
+          </button>
+        </div>
+      </section>
+
+      <!-- ========================
+           SECTION: BLUETOOTH
+           ======================== -->
+      <section class="page-section" id="section-bluetooth">
+        <div class="section-header">
+          <h2 class="section-title"><i class="fa-brands fa-bluetooth-b" style="color:var(--accent-violet);"></i> Bluetooth Connection</h2>
+          <p class="section-subtitle">Web Bluetooth API — BLE device management</p>
+        </div>
+
+        <div class="grid-2 mb-24">
+          <!-- Connection Panel -->
+          <div class="glass-card" style="padding:28px;">
+            <div class="d-flex align-center justify-between mb-24">
+              <div class="font-bold text-lg">BLE Status</div>
+              <span class="conn-badge badge-red" id="bt-conn-badge">DISCONNECTED</span>
+            </div>
+
+            <!-- Radar Animation -->
+            <div class="bt-radar mb-24" id="bt-radar">
+              <div class="bt-radar-circle"></div>
+              <div class="bt-radar-circle"></div>
+              <div class="bt-radar-circle"></div>
+              <div class="bt-radar-sweep" id="bt-radar-sweep" style="display:none;"></div>
+              <div class="bt-radar-icon"><i class="fa-brands fa-bluetooth-b"></i></div>
+            </div>
+
+            <div class="text-center text-sm text-muted mb-20" id="bt-status-text">No device connected</div>
+
+            <!-- Scan Area -->
+            <div class="bt-scan-area mb-20" id="bt-scan-area">
+              <i class="fa-brands fa-bluetooth-b" style="font-size:2.5rem;color:var(--accent-violet);margin-bottom:12px;display:block;"></i>
+              <div class="font-bold mb-8">Scan for BLE Devices</div>
+              <div class="text-sm text-muted mb-16">Finds Arduino modules and smart bulbs nearby</div>
+              <div class="d-flex gap-10 justify-center flex-wrap">
+                <button class="btn-neon btn-primary" id="bt-scan-btn" onclick="startBTScan()">
+                  <i class="fa-solid fa-magnifying-glass"></i> Scan Devices
+                </button>
+                <button class="btn-neon btn-secondary" onclick="Bluetooth.addSimulatedDevices()">
+                  <i class="fa-solid fa-list"></i> Demo Devices
+                </button>
+              </div>
+            </div>
+
+            <!-- Control Buttons -->
+            <div class="d-flex gap-10 flex-wrap">
+              <button class="btn-neon btn-secondary btn-sm" id="bt-connect-btn" onclick="Bluetooth.scan()">
+                <i class="fa-solid fa-link"></i> Connect Real BLE
+              </button>
+              <button class="btn-neon btn-danger btn-sm" id="bt-disconnect-btn" onclick="Bluetooth.disconnectSimulated()" disabled>
+                <i class="fa-solid fa-link-slash"></i> Disconnect
+              </button>
+            </div>
+          </div>
+
+          <!-- Command Panel -->
+          <div class="glass-card" style="padding:28px;">
+            <div class="font-bold text-lg mb-20">
+              <i class="fa-solid fa-terminal" style="color:var(--accent-blue);margin-right:8px;"></i>
+              BLE Commands
+            </div>
+
+            <div class="bt-cmd-grid mb-20">
+              <button class="bt-cmd-btn" onclick="Bluetooth.sendBTCommand('LED_ON')">
+                <i class="fa-solid fa-lightbulb" style="color:var(--accent-yellow);"></i>
+                LED ON
+              </button>
+              <button class="bt-cmd-btn" onclick="Bluetooth.sendBTCommand('LED_OFF')">
+                <i class="fa-solid fa-lightbulb" style="color:var(--text-muted);"></i>
+                LED OFF
+              </button>
+              <button class="bt-cmd-btn" onclick="Bluetooth.sendBTCommand('MODE_AUTO')">
+                <i class="fa-solid fa-robot" style="color:var(--accent-blue);"></i>
+                Auto Mode
+              </button>
+              <button class="bt-cmd-btn" onclick="Bluetooth.sendBTCommand('MODE_SLEEP')">
+                <i class="fa-solid fa-moon" style="color:var(--accent-violet);"></i>
+                Sleep Mode
+              </button>
+              <button class="bt-cmd-btn" onclick="Bluetooth.sendBTCommand('MODE_PARTY')">
+                <i class="fa-solid fa-music" style="color:var(--accent-pink);"></i>
+                Party Mode
+              </button>
+              <button class="bt-cmd-btn" onclick="Bluetooth.sendBTCommand('MODE_READING')">
+                <i class="fa-solid fa-book" style="color:var(--accent-yellow);"></i>
+                Reading
+              </button>
+            </div>
+
+            <!-- Brightness BT -->
+            <div class="mb-20">
+              <div class="d-flex justify-between mb-8">
+                <span class="settings-label">Brightness via BT</span>
+                <span class="font-mono text-sm brightness-value-display" style="color:var(--accent-blue);">0%</span>
+              </div>
+              <input type="range" class="brightness-slider" min="0" max="100" value="0"
+                oninput="Lighting.setBrightness(parseInt(this.value));updateSliderFill(this);if(AppState.btConnected)Bluetooth.sendCommand('BRIGHTNESS:'+this.value)"/>
+              <button class="btn-neon btn-secondary btn-sm mt-12 w-100"
+                onclick="Bluetooth.sendCommand('BRIGHTNESS:'+Math.round(AppState.brightness))">
+                <i class="fa-solid fa-paper-plane"></i> Send Brightness
+              </button>
+            </div>
+
+            <!-- Command Log -->
+            <div>
+              <div class="font-bold text-sm mb-12" style="color:var(--text-secondary);">COMMAND LOG</div>
+              <div id="bt-command-log" style="max-height:200px;overflow-y:auto;background:rgba(0,0,0,0.3);border-radius:8px;padding:12px;font-family:'JetBrains Mono',monospace;">
+                <div style="color:var(--text-muted);font-size:0.78rem;">No commands sent yet...</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Discovered Devices -->
+        <div class="glass-card" style="padding:28px;">
+          <div class="d-flex align-center justify-between mb-20">
+            <div class="font-bold text-lg"><i class="fa-solid fa-wifi" style="color:var(--accent-blue);margin-right:8px;"></i>Discovered Devices</div>
+            <div class="d-flex gap-8">
+              <button class="btn-neon btn-secondary btn-sm" onclick="Bluetooth.addSimulatedDevices()">
+                <i class="fa-solid fa-refresh"></i> Refresh
+              </button>
+            </div>
+          </div>
+          <div id="bt-device-list">
+            <div style="text-align:center;padding:30px;color:var(--text-secondary);">
+              <i class="fa-brands fa-bluetooth-b" style="font-size:2rem;margin-bottom:10px;display:block;opacity:0.3;"></i>
+              Click "Demo Devices" or "Scan Devices" to find BLE devices
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ========================
+           SECTION: VISUALIZATION
+           ======================== -->
+      <section class="page-section" id="section-visualization">
+        <div class="section-header">
+          <h2 class="section-title"><i class="fa-solid fa-house-signal" style="color:var(--accent-blue);"></i> Smart Room Visualization</h2>
+          <p class="section-subtitle">Live interactive smart room view</p>
+        </div>
+
+        <div class="glass-card mb-24 smart-room-container" style="position:relative;" id="smart-room-svg-container">
+          <div id="motion-overlay"></div>
+          <!-- SVG injected here by JS -->
+          <div style="display:flex;align-items:center;justify-content:center;min-height:400px;color:var(--text-muted);">
+            <div class="loading-spinner"></div>
+          </div>
+        </div>
+
+        <!-- Legend -->
+        <div class="glass-card" style="padding:24px;">
+          <div class="font-bold mb-16"><i class="fa-solid fa-circle-info" style="color:var(--accent-blue);margin-right:8px;"></i>Component Legend</div>
+          <div class="d-flex gap-20 flex-wrap">
+            <div class="d-flex align-center gap-8"><span style="width:14px;height:14px;border-radius:50%;background:#f59e0b;display:inline-block;"></span><span class="text-sm">PIR Motion Sensor</span></div>
+            <div class="d-flex align-center gap-8"><span style="width:14px;height:14px;border-radius:50%;background:#00d4ff;display:inline-block;"></span><span class="text-sm">LDR Light Sensor</span></div>
+            <div class="d-flex align-center gap-8"><span style="width:14px;height:14px;border-radius:50%;background:#a855f7;display:inline-block;"></span><span class="text-sm">BLE Module</span></div>
+            <div class="d-flex align-center gap-8"><span style="width:14px;height:14px;border-radius:50%;background:#ffdd66;display:inline-block;"></span><span class="text-sm">LED Array</span></div>
+            <div class="d-flex align-center gap-8"><span style="width:14px;height:14px;border-radius:4px;background:#006633;display:inline-block;"></span><span class="text-sm">Arduino Uno</span></div>
+            <div class="d-flex align-center gap-8"><span style="width:14px;height:14px;border-radius:4px;background:#1a1a3e;border:1px solid rgba(0,212,255,0.3);display:inline-block;"></span><span class="text-sm">RTC DS3231</span></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ========================
+           SECTION: NOTIFICATIONS
+           ======================== -->
+      <section class="page-section" id="section-notifications">
+        <div class="section-header">
+          <h2 class="section-title"><i class="fa-solid fa-bell" style="color:var(--accent-blue);"></i> Notification Center</h2>
+          <p class="section-subtitle">System alerts and activity history</p>
+        </div>
+
+        <div class="d-flex gap-12 mb-20">
+          <button class="btn-neon btn-secondary btn-sm" onclick="Notifications.markAllRead()">
+            <i class="fa-solid fa-check-double"></i> Mark All Read
+          </button>
+          <button class="btn-neon btn-secondary btn-sm" onclick="AppState.notifications=[];AppState.unreadCount=0;Notifications.updateBadge();Notifications.renderLog()">
+            <i class="fa-solid fa-trash"></i> Clear All
+          </button>
+          <!-- Test buttons -->
+          <button class="btn-neon btn-secondary btn-sm" onclick="Notifications.add('Test Alert','This is a test notification','success','fa-check')">
+            <i class="fa-solid fa-vial"></i> Test Alert
+          </button>
+        </div>
+
+        <div class="glass-card" style="padding:28px;">
+          <div id="notification-log" style="max-height:600px;overflow-y:auto;">
+            <div style="text-align:center;color:var(--text-muted);padding:40px;">
+              <i class="fa-solid fa-bell" style="font-size:2rem;margin-bottom:12px;display:block;opacity:0.3;"></i>
+              No notifications yet
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ========================
+           SECTION: SETTINGS
+           ======================== -->
+      <section class="page-section" id="section-settings">
+        <div class="section-header">
+          <h2 class="section-title"><i class="fa-solid fa-gear" style="color:var(--accent-violet);"></i> System Settings</h2>
+          <p class="section-subtitle">Configure system behavior and preferences</p>
+        </div>
+
+        <div class="grid-2">
+          <!-- General Settings -->
+          <div class="glass-card" style="padding:28px;">
+            <div class="font-bold text-lg mb-20"><i class="fa-solid fa-sliders" style="color:var(--accent-blue);margin-right:8px;"></i>General Settings</div>
+
+            <div class="mb-20">
+              <label class="settings-label">No-Motion Timeout (seconds)</label>
+              <input type="number" class="settings-input" value="30" min="5" max="600"
+                onchange="AppState.noMotionTimeout=parseInt(this.value)"/>
+            </div>
+
+            <div class="mb-20">
+              <label class="settings-label">LDR Dark Threshold (%)</label>
+              <input type="number" class="settings-input" value="25" min="5" max="60"/>
+            </div>
+
+            <div class="mb-20">
+              <label class="settings-label">Daytime Start Hour</label>
+              <input type="number" class="settings-input" value="6" min="4" max="10"/>
+            </div>
+
+            <div class="mb-20">
+              <label class="settings-label">Daytime End Hour</label>
+              <input type="number" class="settings-input" value="18" min="15" max="22"/>
+            </div>
+
+            <div class="mb-20">
+              <label class="settings-label">Night Brightness (%)</label>
+              <input type="range" min="20" max="100" value="80" style="width:100%;margin-top:8px;"/>
+            </div>
+
+            <button class="btn-neon btn-primary w-100" onclick="Notifications.add('Settings Saved','Configuration saved successfully','success','fa-check')">
+              <i class="fa-solid fa-floppy-disk"></i> Save Settings
+            </button>
+          </div>
+
+          <!-- Hardware Info -->
+          <div style="display:flex;flex-direction:column;gap:20px;">
+            <div class="glass-card" style="padding:28px;">
+              <div class="font-bold text-lg mb-20"><i class="fa-solid fa-microchip" style="color:var(--accent-green);margin-right:8px;"></i>Hardware Configuration</div>
+              <div class="sensor-reading mb-8"><span>Microcontroller</span><span class="font-mono text-sm" style="color:var(--accent-blue);">Arduino Uno (ATmega328P)</span></div>
+              <div class="sensor-reading mb-8"><span>PIR Sensor</span><span class="font-mono text-sm">HC-SR501</span></div>
+              <div class="sensor-reading mb-8"><span>LDR Sensor</span><span class="font-mono text-sm">GL5528 Photoresistor</span></div>
+              <div class="sensor-reading mb-8"><span>RTC Module</span><span class="font-mono text-sm">DS3231 I²C</span></div>
+              <div class="sensor-reading mb-8"><span>BLE Module</span><span class="font-mono text-sm">HC-08 / HM-10</span></div>
+              <div class="sensor-reading"><span>LED System</span><span class="font-mono text-sm">PWM 12V LED Strip</span></div>
+            </div>
+
+            <div class="glass-card" style="padding:24px;">
+              <div class="font-bold mb-16"><i class="fa-solid fa-code" style="color:var(--accent-violet);margin-right:8px;"></i>Arduino Pin Map</div>
+              <div class="sensor-reading mb-8"><span>PIR Input</span><span class="font-mono text-sm badge-blue" style="padding:2px 8px;border-radius:6px;">D2 (INT0)</span></div>
+              <div class="sensor-reading mb-8"><span>LDR Input</span><span class="font-mono text-sm badge-blue" style="padding:2px 8px;border-radius:6px;">A0</span></div>
+              <div class="sensor-reading mb-8"><span>LED PWM Out</span><span class="font-mono text-sm badge-green" style="padding:2px 8px;border-radius:6px;">D9</span></div>
+              <div class="sensor-reading mb-8"><span>RTC (SDA)</span><span class="font-mono text-sm badge-purple" style="padding:2px 8px;border-radius:6px;">A4</span></div>
+              <div class="sensor-reading mb-8"><span>RTC (SCL)</span><span class="font-mono text-sm badge-purple" style="padding:2px 8px;border-radius:6px;">A5</span></div>
+              <div class="sensor-reading"><span>BLE TX/RX</span><span class="font-mono text-sm badge-purple" style="padding:2px 8px;border-radius:6px;">D0/D1</span></div>
+            </div>
+
+            <!-- Flask API Info -->
+            <div class="glass-card" style="padding:24px;">
+              <div class="font-bold mb-16"><i class="fa-solid fa-server" style="color:var(--accent-orange);margin-right:8px;"></i>Flask REST API Endpoints</div>
+              <div style="font-family:'JetBrains Mono',monospace;font-size:0.75rem;color:var(--text-secondary);">
+                <div class="mb-8"><span style="color:var(--accent-green);">GET</span>  /api/status</div>
+                <div class="mb-8"><span style="color:var(--accent-blue);">POST</span> /api/led/on</div>
+                <div class="mb-8"><span style="color:var(--accent-blue);">POST</span> /api/led/off</div>
+                <div class="mb-8"><span style="color:var(--accent-blue);">POST</span> /api/brightness</div>
+                <div class="mb-8"><span style="color:var(--accent-blue);">POST</span> /api/mode</div>
+                <div class="mb-8"><span style="color:var(--accent-green);">GET</span>  /api/sensors</div>
+                <div><span style="color:var(--accent-green);">GET</span>  /api/energy</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+    </div><!-- /page-content -->
+  </main>
+</div><!-- /app-layout -->
+
+<!-- Scripts -->
+<script src="js/particles.js"></script>
+<script src="js/visualization.js"></script>
+<script src="js/bluetooth.js"></script>
+<script src="js/charts.js"></script>
+<script src="js/app.js"></script>
+
+<script>
+// Helper: Update slider fill visual
+function updateSliderFill(slider) {
+  const fills = slider.parentElement.querySelectorAll('.slider-track-fill');
+  fills.forEach(f => f.style.width = slider.value + '%');
+}
+
+// Sync all brightness sliders
+function syncSliders(val) {
+  document.querySelectorAll('.brightness-slider').forEach(sl => {
+    sl.value = val;
+    updateSliderFill(sl);
+  });
+}
+
+// Mode selection
+function selectMode(card, mode) {
+  Lighting.setMode(mode);
+  const modeInfo = {
+    AUTO: { icon: '🤖', name: 'Automatic Mode Active', desc: 'Sensors control lighting automatically based on PIR and LDR data' },
+    SLEEP: { icon: '🌙', name: 'Sleep Mode Active', desc: 'LED dimmed to 20% — saving energy while motion detection stays active' },
+    PARTY: { icon: '🎉', name: 'Party Mode Active', desc: 'LED blinking effect active — enjoy the party lighting!' },
+    READING: { icon: '📖', name: 'Reading Mode Active', desc: 'Stable 80% bright white lighting for comfortable reading' },
+    CUSTOM: { icon: '⚙️', name: 'Custom Mode Active', desc: `Personalized brightness at ${AppState.customBrightness}%` },
+  };
+  const info = modeInfo[mode] || {};
+  const nameEl = document.getElementById('active-mode-name');
+  const descEl = document.getElementById('active-mode-desc');
+  const iconEl = document.getElementById('active-mode-icon');
+  if (nameEl) nameEl.textContent = info.name || mode;
+  if (descEl) descEl.textContent = info.desc || '';
+  if (iconEl) iconEl.textContent = info.icon || '⚙️';
+}
+
+// Start/Stop party helpers
+function startParty() {
+  AppState.currentMode = 'PARTY';
+  Lighting.startPartyMode();
+  Lighting.updateModeUI();
+  Particles.setPartyMode(true);
+  Notifications.add('Party Mode Started', '🎉 Let the party begin! LEDs blinking!', 'party', 'fa-music');
+  selectMode(null, 'PARTY');
+}
+
+function stopParty() {
+  Lighting.stopPartyMode();
+  AppState.currentMode = 'AUTO';
+  Lighting.updateModeUI();
+  Particles.setPartyMode(false);
+  Notifications.add('Party Mode Stopped', 'Returning to Automatic mode', 'info', 'fa-stop');
+  selectMode(null, 'AUTO');
+}
+
+// Update blink speed
+function updateBlinkSpeed(val) {
+  AppState.partyBlinkRate = parseInt(val);
+  const el = document.getElementById('blink-speed-display');
+  if (el) el.textContent = val + 'ms';
+  if (AppState.partyActive) {
+    clearInterval(AppState.partyIntervalId);
+    const blink = () => {
+      AppState.ledOn = !AppState.ledOn;
+      AppState.brightness = AppState.ledOn ? 100 : 0;
+      Lighting.updateBrightnessVisuals();
+      Lighting.updateUI();
+    };
+    AppState.partyIntervalId = setInterval(blink, AppState.partyBlinkRate);
+  }
+}
+
+// BT Scan with demo fallback
+function startBTScan() {
+  const radarSweep = document.getElementById('bt-radar-sweep');
+  if (radarSweep) radarSweep.style.display = 'block';
+
+  if (!navigator.bluetooth) {
+    Notifications.add('BT Not Supported', 'Using demo mode — Web BT requires Chrome/Edge', 'warning', 'fa-bluetooth');
+    setTimeout(() => { Bluetooth.addSimulatedDevices(); if(radarSweep) radarSweep.style.display = 'none'; }, 2000);
+  } else {
+    Bluetooth.scan().finally(() => { if(radarSweep) radarSweep.style.display = 'none'; });
+  }
+}
+
+// Save custom profile
+function saveCustomProfile() {
+  const brightness = AppState.customBrightness;
+  localStorage.setItem('smartlight_custom_brightness', brightness);
+  Notifications.add('Profile Saved', `Custom brightness ${brightness}% saved to device`, 'success', 'fa-floppy-disk');
+}
+
+// Update estimated power
+setInterval(() => {
+  const pct = AppState.brightness / 100;
+  const power = (pct * 15).toFixed(1);
+  const el = document.getElementById('est-power');
+  if (el) el.textContent = power + ' W';
+  const elE = document.getElementById('energy-current');
+  if (elE) elE.textContent = power + 'W';
+  const el2 = document.getElementById('kpi-energy-saved-2');
+  if (el2) el2.textContent = AppState.totalEnergySaved.toFixed(2) + ' kWh';
+
+  // Update led-on-off-label
+  const lblEl = document.getElementById('led-on-off-label');
+  if (lblEl) lblEl.textContent = AppState.ledOn ? 'LED ON' : 'LED OFF';
+
+  // Sync brightness bar on KPI
+  const bar = document.getElementById('brightness-kpi-bar');
+  if (bar) bar.style.width = Math.round(AppState.brightness) + '%';
+}, 500);
+
+// Override navigateTo to trigger visualization render
+document.addEventListener('DOMContentLoaded', () => {
+  // Render visualization when that section is opened
+  const origNav = navigateTo;
+  window.navigateTo = function(page) {
+    origNav(page);
+    if (page === 'visualization') {
+      setTimeout(() => Visualization.render(), 100);
+    }
+    if (page === 'notifications') {
+      Notifications.renderLog();
+      Notifications.markAllRead();
+    }
+    // Sync day/night indicators
+    const isDaytime = AppState.isDaytime;
+    document.querySelectorAll('.day-night-badge').forEach(el => {
+      el.textContent = isDaytime ? '☀️ DAYTIME' : '🌙 NIGHTTIME';
+      el.className = 'day-night-badge ' + (isDaytime ? 'day' : 'night');
+    });
+    // Sync sensor daynight
+    const sdn = document.getElementById('sensor-daynight');
+    if (sdn) sdn.textContent = isDaytime ? 'DAYTIME' : 'NIGHTTIME';
+  };
+});
+</script>
+</body>
+</html>
